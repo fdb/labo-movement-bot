@@ -20,7 +20,6 @@ let avatarId = "8DugdXZ";
 let displayName = "MrRobot";
 // Members keyed by session ID.
 let members = {};
-let chatStates = {};
 
 const oscClient = new Client("127.0.0.1", 3333);
 
@@ -59,6 +58,23 @@ function receiveMessage(data) {
     } else {
       console.log(`ERROR WHILE JOINING: ${JSON.stringify(body)}`);
     }
+  } else if (command === "presence_diff") {
+    for (const sessionId of Object.keys(body.joins)) {
+      members[sessionId] = {
+        displayName: body.joins[sessionId].metas[0].profile.displayName,
+        distance: 0,
+      };
+    }
+    for (const sessionId of Object.keys(body.joins)) {
+      delete members[sessionId];
+    }
+  } else if (command === "presence_state") {
+    for (const sessionId of Object.keys(body)) {
+      members[sessionId] = {
+        displayName: body[sessionId].metas[0].profile.displayName,
+        distance: 0,
+      };
+    }
   } else if (command === "nafr" && state === STATE_CONNECTED) {
     const naf = JSON.parse(body.naf);
     const owner = naf.data.d[0].owner;
@@ -70,8 +86,11 @@ function receiveMessage(data) {
           position.y * position.y +
           position.z * position.z
       );
-      console.log(owner, dist);
-      oscClient.send("/move", owner, dist);
+      if (members[owner]) {
+        members[owner].distance = dist;
+        sendDistances();
+      }
+      // oscClient.send("/move", owner, dist);
     }
   } else if (command === "message" && state === STATE_CONNECTED) {
     // console.log(body);
@@ -81,6 +100,14 @@ function receiveMessage(data) {
   } else {
     //console.log(`Unknown command ${command}`);
   }
+}
+
+function sendDistances() {
+  console.log(members);
+  let sessionIds = Object.keys(members).sort();
+  sessionIds = sessionIds.filter((id) => id !== botSessionId);
+  const distances = sessionIds.map((id) => members[id].distance);
+  oscClient.send("/move", ...distances);
 }
 
 function sendHeartbeat() {
