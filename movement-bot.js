@@ -90,13 +90,10 @@ function receiveMessage(data) {
         members[owner].distance = dist;
         sendDistances();
       }
-      // oscClient.send("/move", owner, dist);
     }
   } else if (command === "message" && state === STATE_CONNECTED) {
     // console.log(body);
     // handleChatMessage(body);
-  } else if (command === "presence_diff") {
-    console.log(body);
   } else {
     //console.log(`Unknown command ${command}`);
   }
@@ -118,3 +115,5 @@ ws.on("open", function () {
   sendMessage("ret", "phx_join", { hub_id: hubId });
 });
 ws.on("message", receiveMessage);
+ws.on("error", (data) => console.error(`Server error: ${data}`));
+ws.on("close", () => console.error(`Connection closed.`));
