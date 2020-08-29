@@ -17,7 +17,7 @@ let sendId = 1;
 let botSessionId;
 let vapidPublicKey;
 let avatarId = "8DugdXZ";
-let displayName = "MrRobot";
+let displayName = "MrAlienRobot";
 // Members keyed by session ID.
 let members = {};
 
@@ -60,12 +60,22 @@ function receiveMessage(data) {
     }
   } else if (command === "presence_diff") {
     for (const sessionId of Object.keys(body.joins)) {
+      const meta = body.joins[sessionId].metas[0];
+      if (meta.presence !== 'room') continue;
+      const displayName = meta.profile.displayName;
+      // if (displayName === 'MrsRobot') continue;
+      // if (displayName === 'MrAlienRobot') continue;
+      console.log(`${displayName} joined.`);
       members[sessionId] = {
-        displayName: body.joins[sessionId].metas[0].profile.displayName,
+        displayName,
         distance: 0,
       };
     }
-    for (const sessionId of Object.keys(body.joins)) {
+    for (const sessionId of Object.keys(body.leaves)) {
+      const meta = body.leaves[sessionId].metas[0];
+      if (meta.presence !== 'room') continue;
+      const displayName = meta.profile.displayName;
+      console.log(`${displayName} left.`);
       delete members[sessionId];
     }
   } else if (command === "presence_state") {
@@ -77,23 +87,30 @@ function receiveMessage(data) {
     }
   } else if (command === "nafr" && state === STATE_CONNECTED) {
     const naf = JSON.parse(body.naf);
-    const owner = naf.data.d[0].owner;
-    const position = naf.data.d[0].components[0];
+    try {
+      const owner = naf.data.d[0].owner;
+      const position = naf.data.d[0].components[0];
 
-    if (position) {
-      const dist = Math.sqrt(
-        position.x * position.x +
+      if (position) {
+        const dist = Math.sqrt(
+          position.x * position.x +
           position.y * position.y +
           position.z * position.z
-      );
-      if (members[owner]) {
-        members[owner].distance = dist;
-        sendDistances();
+        );
+        if (members[owner]) {
+          members[owner].distance = dist;
+          sendDistances();
+        }
+        // oscClient.send("/move", owner, dist);
       }
+    } catch (e) {
+      // Ignore the exception!
     }
   } else if (command === "message" && state === STATE_CONNECTED) {
     // console.log(body);
     // handleChatMessage(body);
+  } else if (command === "presence_diff") {
+    console.log(body);
   } else {
     //console.log(`Unknown command ${command}`);
   }
@@ -115,5 +132,5 @@ ws.on("open", function () {
   sendMessage("ret", "phx_join", { hub_id: hubId });
 });
 ws.on("message", receiveMessage);
-ws.on("error", (data) => console.error(`Server error: ${data}`));
-ws.on("close", () => console.error(`Connection closed.`));
+ws.on("error", (data) => console.error('Server error: ${data}'));
+ws.on("close", () => console.error('Connection closed.'));
